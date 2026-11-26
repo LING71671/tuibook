@@ -30,10 +30,22 @@ tuibook search "The Raven" --source wikisource-en --json
 
 Book files and metadata are stored under `~/.tuibook`. Set `TUIBOOK_DATA_DIR` to use a different location. Removing a book moves the managed copy into `trash/` within that directory.
 
+## Verification
+
+The `build` task runs the tests and Detekt static analysis and generates a JaCoCo coverage report.
+Find the HTML reports under `build/reports`:
+
+- Tests at `tests/test/index.html`
+- Coverage at `jacoco/test/html/index.html`
+- Static analysis at `detekt/detekt.html`
+
+GitHub Actions runs the same build on Linux and Windows for pull requests and pushes to `main`.
+Download the verification reports from the workflow run.
+
 ## Project layout
 
 - `src/main/kotlin/tuibook/cli/` handles commands and renders text or JSON.
-- `LocalLibrary` manages local files and reading-list metadata.
+- `LocalLibrary` manages the reading list. `LibraryStorage` handles file storage and locking.
 - `OnlineLibrary` coordinates downloads and source settings through the `BookSource` adapters.
 
 See the [command and source API](docs/API.md) for configuration, response formats, and adapter extension points. The [product requirements](docs/PRODUCT_REQUIREMENTS.md) also describe the planned terminal reading interface.
