@@ -28,7 +28,8 @@ internal class SourceRegistry(settings: SourceSettings) {
         Wikisource(http, "en", "English Wikisource"),
         WolneLektury(http),
     ).associateBy { it.id }
-    private val sources: Map<String, BookSource> = builtIn + settings.external.associate { it.id to OpdsSource(http, it) }
+    private val sources: Map<String, BookSource> = builtIn +
+        settings.external.associate { it.id to OpdsSource(http, it) }
     private val status = settings.status
 
     fun list(): List<SourceInfo> = sources.values.map {
@@ -45,13 +46,15 @@ internal class SourceRegistry(settings: SourceSettings) {
                     try {
                         SearchResult(source.search(query))
                     } catch (failure: SourceFailure) {
-                        SearchResult(emptyList(), listOf(SearchError(source.id, failure.code, failure.message.orEmpty())))
+                        val error = SearchError(source.id, failure.code, failure.message.orEmpty())
+                        SearchResult(emptyList(), listOf(error))
                     }
                 }
             }.map { it.get() }
             val errors = results.flatMap { it.sourceErrors }
             if (errors.size == enabled.size) {
-                throw SourceFailure(errors.first().code, errors.joinToString("; ") { "${it.sourceId}: ${it.message}" })
+                val message = errors.joinToString("; ") { "${it.sourceId}: ${it.message}" }
+                throw SourceFailure(errors.first().code, message)
             }
             SearchResult(results.flatMap { it.results }, errors)
         }
@@ -65,10 +68,12 @@ internal class SourceRegistry(settings: SourceSettings) {
     }
 
     private fun activeSource(id: String): BookSource {
-        return when (status[id]) {
-            SourceStatus.REMOVED -> throw SourceFailure("SOURCE_REMOVED", "Source $id has been removed.")
-            SourceStatus.DISABLED -> throw SourceFailure("SOURCE_DISABLED", "Source $id is disabled.")
-            else -> sources[id] ?: throw SourceFailure("UNKNOWN_SOURCE", "Unknown source: $id.")
+        val failure = when (status[id]) {
+            SourceStatus.REMOVED -> SourceFailure("SOURCE_REMOVED", "Source $id has been removed.")
+            SourceStatus.DISABLED -> SourceFailure("SOURCE_DISABLED", "Source $id is disabled.")
+            else -> null
         }
+        if (failure != null) throw failure
+        return sources[id] ?: throw SourceFailure("UNKNOWN_SOURCE", "Unknown source: $id.")
     }
 }

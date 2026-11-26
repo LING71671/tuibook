@@ -47,14 +47,16 @@ internal class LibraryCommands(
     }
 
     private fun favorite(args: List<String>) {
-        require(args.size == 3 && args[1] in favoriteActions) {
+        require(args.size == BOOK_ACTION_WORDS && args[1] in favoriteActions) {
             "Usage: tuibook favorite add|remove <book ID or title> [--json]"
         }
         sink.book(library.setFavorite(args[2], args[1] == "add"))
     }
 
     private fun status(args: List<String>) {
-        require(args.size == 3) { "Usage: tuibook status <book ID or title> unread|reading|finished [--json]" }
+        require(args.size == BOOK_ACTION_WORDS) {
+            "Usage: tuibook status <book ID or title> unread|reading|finished [--json]"
+        }
         val status = ReadingStatus.entries.firstOrNull { it.name.equals(args[2], ignoreCase = true) }
             ?: throw IllegalArgumentException("Reading status must be unread, reading, or finished.")
         sink.book(library.setStatus(args[1], status))
@@ -72,11 +74,13 @@ internal class LibraryCommands(
     }
 
     private fun titleOption(args: List<String>, usage: String): String? {
-        require(args.size == 2 || (args.size == 4 && args[2] == "--title")) { usage }
-        return args.getOrNull(3)?.trim()?.also { require(it.isNotEmpty()) { "The title must not be blank." } }
+        val options = args.drop(2)
+        require(args.size >= 2 && (options.isEmpty() || (options.size == 2 && options.first() == "--title"))) { usage }
+        return options.lastOrNull()?.trim()?.also { require(it.isNotEmpty()) { "The title must not be blank." } }
     }
 
     companion object {
+        private const val BOOK_ACTION_WORDS = 3
         val names = setOf("list", "add", "favorite", "status", "remove", "update")
         private val listFlags = setOf("--plain", "--favorites")
         private val favoriteActions = setOf("add", "remove")

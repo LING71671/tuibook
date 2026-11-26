@@ -3,6 +3,8 @@ package tuibook.source
 import kotlinx.serialization.Serializable
 import java.io.IOException
 
+internal const val SOURCE_SEARCH_LIMIT = 12
+
 interface BookSource {
     val id: String
     val name: String

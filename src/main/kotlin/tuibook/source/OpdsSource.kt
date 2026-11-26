@@ -30,7 +30,7 @@ internal class OpdsSource(private val http: SourceHttp, private val config: Opds
 
     override fun search(query: String): List<SourceBook> = entries()
         .filter { it.book.title.contains(query, ignoreCase = true) || it.author.contains(query, ignoreCase = true) }
-        .take(12)
+        .take(SOURCE_SEARCH_LIMIT)
         .map { it.book }
 
     override fun download(itemId: String): BookDownload {
@@ -62,18 +62,22 @@ internal class OpdsSource(private val http: SourceHttp, private val config: Opds
     }
 
     private fun Element.toEntry(): Entry? {
-        val title = atomText("title")?.takeIf { it.isNotBlank() } ?: return null
-        val remoteId = atomText("id")?.takeIf { it.isNotBlank() } ?: return null
+        val title = atomText("title")
+        val remoteId = atomText("id")
+        if (title.isNullOrBlank() || remoteId.isNullOrBlank()) return null
         val links = getElementsByTagNameNS(ATOM, "link")
         val epub = (0 until links.length).asSequence()
             .map { links.item(it) as Element }
             .filter { it.getAttribute("type").substringBefore(';').trim() == "application/epub+zip" }
             .filter { it.getAttribute("rel") in PUBLIC_ACQUISITIONS }
             .mapNotNull { resolve(it.getAttribute("href")) }
-            .firstOrNull() ?: return null
-        val itemId = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(remoteId.encodeToByteArray()))
-        val author = (getElementsByTagNameNS(ATOM, "author").item(0) as? Element)?.atomText("name").orEmpty()
-        return Entry(book(itemId, title, catalog.toString()), author, epub)
+            .firstOrNull()
+        return epub?.let { file ->
+            val digest = MessageDigest.getInstance("SHA-256").digest(remoteId.encodeToByteArray())
+            val itemId = HexFormat.of().formatHex(digest)
+            val author = (getElementsByTagNameNS(ATOM, "author").item(0) as? Element)?.atomText("name").orEmpty()
+            Entry(book(itemId, title, catalog.toString()), author, file)
+        }
     }
 
     private fun Element.atomText(tag: String): String? = getElementsByTagNameNS(ATOM, tag).item(0)?.textContent?.trim()
@@ -91,6 +95,9 @@ internal class OpdsSource(private val http: SourceHttp, private val config: Opds
 
     private companion object {
         const val ATOM = "http://www.w3.org/2005/Atom"
-        val PUBLIC_ACQUISITIONS = setOf("http://opds-spec.org/acquisition", "http://opds-spec.org/acquisition/open-access")
+        val PUBLIC_ACQUISITIONS = setOf(
+            "http://opds-spec.org/acquisition",
+            "http://opds-spec.org/acquisition/open-access",
+        )
     }
 }

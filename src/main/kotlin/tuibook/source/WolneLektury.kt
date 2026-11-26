@@ -15,7 +15,7 @@ internal class WolneLektury(private val http: SourceHttp) : BookSource {
         val term = normalize(query)
         return catalog.asSequence()
             .filter { normalize(it.title).contains(term) || normalize(it.author).contains(term) }
-            .take(12)
+            .take(SOURCE_SEARCH_LIMIT)
             .map { book(it.slug, it.title, it.url) }
             .toList()
     }
@@ -30,11 +30,13 @@ internal class WolneLektury(private val http: SourceHttp) : BookSource {
         return BookDownload(book(itemId, details.title, details.url), BookFormat.EPUB, http.readEpub(file))
     }
 
-    private fun normalize(value: String): String = Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFKD)
-        .replace(diacritics, "")
-        .replace('ł', 'l')
+    private fun normalize(value: String): String =
+        Normalizer.normalize(value.lowercase(Locale.ROOT), Normalizer.Form.NFKD)
+            .replace(diacritics, "")
+            .replace('\u0142', 'l')
 
-    @Serializable private data class Summary(val slug: String, val title: String, val author: String, val url: String)
+    @Serializable
+    private data class Summary(val slug: String, val title: String, val author: String, val url: String)
     @Serializable private data class Details(val title: String, val url: String, val epub: String? = null)
 
     private companion object {

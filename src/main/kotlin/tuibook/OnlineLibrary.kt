@@ -31,7 +31,9 @@ internal class OnlineLibrary(private val data: LocalData) {
         val config = Json.decodeFromString<OpdsConfig>(Files.readString(file))
         config.validate()
         data.updateSources { settings ->
-            require(SourceRegistry(settings).list().none { it.id == config.id }) { "Source ID already exists: ${config.id}." }
+            require(SourceRegistry(settings).list().none { it.id == config.id }) {
+                "Source ID already exists: ${config.id}."
+            }
             settings.copy(external = settings.external + config)
         }
     }
@@ -48,7 +50,9 @@ internal class OnlineLibrary(private val data: LocalData) {
         val id = source.id
         val status = when (action) {
             SourceAction.ENABLE, SourceAction.DISABLE -> {
-                require(source.status != SourceStatus.REMOVED) { "Restore the source before changing its enabled status." }
+                require(source.status != SourceStatus.REMOVED) {
+                    "Restore the source before changing its enabled status."
+                }
                 if (action == SourceAction.ENABLE) SourceStatus.ENABLED else SourceStatus.DISABLED
             }
             SourceAction.REMOVE -> if (source.builtIn) SourceStatus.REMOVED else return settings.copy(
@@ -56,7 +60,9 @@ internal class OnlineLibrary(private val data: LocalData) {
                 status = settings.status - id,
             )
             SourceAction.RESTORE -> {
-                require(source.builtIn && source.status == SourceStatus.REMOVED) { "Only a removed built-in source can be restored." }
+                require(source.builtIn && source.status == SourceStatus.REMOVED) {
+                    "Only a removed built-in source can be restored."
+                }
                 SourceStatus.ENABLED
             }
         }

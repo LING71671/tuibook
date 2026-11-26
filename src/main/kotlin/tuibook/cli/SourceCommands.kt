@@ -19,12 +19,13 @@ internal class SourceCommands(private val online: OnlineLibrary, private val sin
     }
 
     private fun search(args: List<String>) {
-        require(args.size == 2 || (args.size == 4 && args[2] == "--source")) {
+        val options = args.drop(2)
+        require(args.size >= 2 && (options.isEmpty() || (options.size == 2 && options.first() == "--source"))) {
             "Usage: tuibook search <query> [--source <id>] [--json]"
         }
         val query = args[1].trim()
         require(query.isNotEmpty() && !query.startsWith("--")) { "Enter a title or search term." }
-        val result = online.search(query, args.getOrNull(3))
+        val result = online.search(query, options.lastOrNull())
         if (sink.json) sink.stdout.println(Json.encodeToString(result)) else {
             result.results.forEach { sink.stdout.println("${it.sourceBookId}\t${it.title}") }
             result.sourceErrors.forEach { sink.stderr.println("${it.sourceId}: ${it.message}") }
