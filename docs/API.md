@@ -53,6 +53,8 @@ tuibook search "Meditaciones" --source textos --json
 
 Search covers the entries returned by that feed URL. For a navigation catalog, select a subsection with direct EPUB acquisition links and use its feed URL.
 
+If the configuration file cannot be decoded, `source add` exits with code `1`, reports `INVALID_SOURCE_CONFIG`, and names the file.
+
 To integrate another public catalog, implement `BookSource.search` and `BookSource.download` in `src/main/kotlin/tuibook/source/`, then register the adapter in `SourceRegistry`. Install with `./gradlew installDist` and run the launcher in `build/install/tuibook/bin/`.
 
 ## JSON output

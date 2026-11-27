@@ -68,6 +68,22 @@ class CliTest {
     }
 
     @Test
+    fun `malformed OPDS configuration identifies the file and leaves sources unchanged`() {
+        val config = temporary.newFile("catalog.json").toPath()
+        val sources = invoke("source", "list", "--json").json()
+
+        for (contents in listOf("{", """{"id":"catalog","name":"Example"}""")) {
+            Files.writeString(config, contents)
+            val result = invoke("source", "add", config.toString(), "--json")
+
+            assertEquals(1, result.exit)
+            assertEquals("INVALID_SOURCE_CONFIG", result.errorCode())
+            assertContains(result.stdout, "catalog.json")
+            assertEquals(sources, invoke("source", "list", "--json").json())
+        }
+    }
+
+    @Test
     fun `an argument error without JSON is written to stderr`() {
         val result = invoke("add")
         assertEquals(2, result.exit)

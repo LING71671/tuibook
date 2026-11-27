@@ -1,5 +1,6 @@
 package tuibook
 
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import tuibook.source.OpdsConfig
 import tuibook.source.SourceFailure
@@ -28,7 +29,16 @@ internal class OnlineLibrary(private val data: LocalData) {
     fun sources(): List<SourceInfo> = registry().list()
 
     fun importSource(file: Path) {
-        val config = Json.decodeFromString<OpdsConfig>(Files.readString(file))
+        val contents = Files.readString(file)
+        val config = try {
+            Json.decodeFromString<OpdsConfig>(contents)
+        } catch (failure: SerializationException) {
+            throw SourceFailure(
+                "INVALID_SOURCE_CONFIG",
+                "Invalid OPDS configuration in '${file.fileName}'. Use JSON fields id, name, and catalogUrl.",
+                failure,
+            )
+        }
         config.validate()
         data.updateSources { settings ->
             require(SourceRegistry(settings).list().none { it.id == config.id }) {
