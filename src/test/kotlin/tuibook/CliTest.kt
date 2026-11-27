@@ -25,7 +25,9 @@ class CliTest {
             listOf("unknown"),
             listOf("list", "--query"),
             listOf("list", "--favorites", "--favorites"),
+            listOf("search", "Story", "--source"),
             listOf("status", "Story", "waiting"),
+            listOf("source", "invalid", "wikisource-en"),
         )
         for (command in commands) {
             val result = invoke(*(command + "--json").toTypedArray())
@@ -55,6 +57,30 @@ class CliTest {
         val plain = invoke("list", "--plain")
         assertEquals(0, plain.exit)
         assertContains(plain.stdout, "$bookId\t$title\treading\tfavorite")
+    }
+
+    @Test
+    fun `a disabled source fails before searching the network`() {
+        assertEquals(0, invoke("source", "disable", "wikisource-en", "--json").exit)
+        val result = invoke("search", "The Raven", "--source", "wikisource-en", "--json")
+        assertEquals(1, result.exit)
+        assertEquals("SOURCE_DISABLED", result.errorCode())
+    }
+
+    @Test
+    fun `malformed OPDS configuration identifies the file and leaves sources unchanged`() {
+        val config = temporary.newFile("catalog.json").toPath()
+        val sources = invoke("source", "list", "--json").json()
+
+        for (contents in listOf("{", """{"id":"catalog","name":"Example"}""")) {
+            Files.writeString(config, contents)
+            val result = invoke("source", "add", config.toString(), "--json")
+
+            assertEquals(1, result.exit)
+            assertEquals("INVALID_SOURCE_CONFIG", result.errorCode())
+            assertContains(result.stdout, "catalog.json")
+            assertEquals(sources, invoke("source", "list", "--json").json())
+        }
     }
 
     @Test

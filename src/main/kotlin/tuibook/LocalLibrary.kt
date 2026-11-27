@@ -2,6 +2,7 @@ package tuibook
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import tuibook.source.BookDownload
 import tuibook.source.BookFormat
 import tuibook.source.isEpub
 import java.io.IOException
@@ -47,6 +48,8 @@ internal class LocalLibrary(root: Path) {
 
     fun find(reference: String): LocalBook = storage.locked { storage.resolve(reference) }
 
+    fun findDownload(sourceBookId: String): LocalBook? = storage.locked { storage.readBook(downloadId(sourceBookId)) }
+
     fun importFile(file: Path, title: String? = null): LocalBook {
         require(Files.isRegularFile(file)) { "Choose an existing book file: $file." }
         val filename = file.fileName.toString()
@@ -66,11 +69,35 @@ internal class LocalLibrary(root: Path) {
         }
     }
 
+    fun save(download: BookDownload): LocalBook {
+        val source = download.book
+        findDownload(source.sourceBookId)?.let { return it }
+        return storage.publish(download.format) { target ->
+            Files.write(target, download.content)
+            LocalBook(
+                bookId = downloadId(source.sourceBookId),
+                sourceBookId = source.sourceBookId,
+                title = source.title,
+                sourceUrl = source.sourceUrl,
+                format = download.format.extension,
+            )
+        }
+    }
+
     fun setFavorite(reference: String, favorite: Boolean): LocalBook = edit(reference) { it.copy(favorite = favorite) }
 
     fun setStatus(reference: String, status: ReadingStatus): LocalBook = edit(reference) { it.copy(status = status) }
 
     fun rename(reference: String, title: String): LocalBook = edit(reference) { it.copy(title = title) }
+
+    fun refresh(bookId: String, download: BookDownload): LocalBook = storage.locked {
+        val book = storage.readBook(bookId) ?: throw bookNotFound(bookId)
+        if (book.sourceBookId != download.book.sourceBookId || book.format != download.format.extension) {
+            throw LibraryFailure("INCOMPATIBLE_UPDATE", "The source returned a different edition or file format.")
+        }
+        storage.replaceContent(book, download.content)
+        book
+    }
 
     fun remove(reference: String): LocalBook = storage.locked { storage.archive(storage.resolve(reference)) }
 
@@ -80,6 +107,8 @@ internal class LocalLibrary(root: Path) {
         book
     }
 }
+
+private fun downloadId(sourceBookId: String): String = bookId(sha256().digest(sourceBookId.encodeToByteArray()))
 
 private fun bookId(digest: ByteArray): String = "book-${HexFormat.of().formatHex(digest)}"
 

@@ -3,6 +3,8 @@ package tuibook
 import kotlinx.serialization.SerializationException
 import tuibook.cli.CommandOutput
 import tuibook.cli.LibraryCommands
+import tuibook.cli.SourceCommands
+import tuibook.source.SourceFailure
 import java.io.IOException
 import java.io.PrintStream
 import kotlin.system.exitProcess
@@ -24,6 +26,8 @@ internal fun runCli(
     return try {
         dispatch(arguments, localData ?: LocalData.default(), output)
         0
+    } catch (failure: SourceFailure) {
+        output.failure(failure.code, failure.message.orEmpty(), 1)
     } catch (failure: LibraryFailure) {
         output.failure(failure.code, failure.message.orEmpty(), 1)
     } catch (_: SerializationException) {
@@ -37,7 +41,8 @@ internal fun runCli(
 
 private fun dispatch(args: List<String>, data: LocalData, output: CommandOutput) {
     when (val command = args.firstOrNull()) {
-        in LibraryCommands.names -> LibraryCommands(data.library, output).execute(args)
+        in LibraryCommands.names -> LibraryCommands(data.library, OnlineLibrary(data), output).execute(args)
+        in SourceCommands.names -> SourceCommands(OnlineLibrary(data), output).execute(args)
         null, "help", "--help" -> output.stdout.println(usage)
         else -> throw IllegalArgumentException("Unknown command: $command. Run tuibook --help for supported commands.")
     }
@@ -48,6 +53,11 @@ private val usage = """
     tuibook add <path> [--title <title>] [--json]
     tuibook favorite add|remove <book ID or title> [--json]
     tuibook status <book ID or title> unread|reading|finished [--json]
-    tuibook update <book ID or title> --title <new title> [--json]
+    tuibook update <book ID or title> [--title <new title>] [--json]
     tuibook remove <book ID or title> [--json]
+    tuibook search <query> [--source <id>] [--json]
+    tuibook download <sourceBookId> [--json]
+    tuibook source list [--json]
+    tuibook source add <opds-config.json>
+    tuibook source enable|disable|remove|restore <id>
 """.trimIndent()
