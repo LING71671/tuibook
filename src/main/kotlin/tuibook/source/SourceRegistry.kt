@@ -21,8 +21,7 @@ internal data class SearchResult(val results: List<SourceBook>, val sourceErrors
 @Serializable
 internal data class SearchError(val sourceId: String, val code: String, val message: String)
 
-internal class SourceRegistry(settings: SourceSettings) {
-    private val http = SourceHttp()
+internal class SourceRegistry(settings: SourceSettings, http: SourceHttp) {
     private val builtIn = listOf(
         Wikisource(http, "zh", "Chinese Wikisource"),
         Wikisource(http, "en", "English Wikisource"),

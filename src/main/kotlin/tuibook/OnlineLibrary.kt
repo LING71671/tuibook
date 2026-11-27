@@ -4,6 +4,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import tuibook.source.OpdsConfig
 import tuibook.source.SourceFailure
+import tuibook.source.SourceHttp
 import tuibook.source.SourceInfo
 import tuibook.source.SourceRegistry
 import tuibook.source.SourceSettings
@@ -13,7 +14,7 @@ import java.nio.file.Path
 
 internal enum class SourceAction { ENABLE, DISABLE, REMOVE, RESTORE }
 
-internal class OnlineLibrary(private val data: LocalData) {
+internal class OnlineLibrary(private val data: LocalData, private val http: SourceHttp = SourceHttp()) {
     fun search(query: String, sourceId: String?) = registry().search(query, sourceId)
 
     fun download(sourceBookId: String): LocalBook = data.library.findDownload(sourceBookId)
@@ -41,7 +42,7 @@ internal class OnlineLibrary(private val data: LocalData) {
         }
         config.validate()
         data.updateSources { settings ->
-            require(SourceRegistry(settings).list().none { it.id == config.id }) {
+            require(SourceRegistry(settings, http).list().none { it.id == config.id }) {
                 "Source ID already exists: ${config.id}."
             }
             settings.copy(external = settings.external + config)
@@ -49,12 +50,12 @@ internal class OnlineLibrary(private val data: LocalData) {
     }
 
     fun changeSourceStatus(id: String, action: SourceAction) = data.updateSources { settings ->
-        val source = SourceRegistry(settings).list().firstOrNull { it.id == id }
+        val source = SourceRegistry(settings, http).list().firstOrNull { it.id == id }
             ?: throw SourceFailure("UNKNOWN_SOURCE", "Unknown source: $id.")
         updatedSettings(settings, source, action)
     }
 
-    private fun registry() = SourceRegistry(data.sourceSettings())
+    private fun registry() = SourceRegistry(data.sourceSettings(), http)
 
     private fun updatedSettings(settings: SourceSettings, source: SourceInfo, action: SourceAction): SourceSettings {
         val id = source.id

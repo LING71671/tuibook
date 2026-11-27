@@ -16,16 +16,40 @@ import java.time.Duration
 
 private const val MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 
-internal class SourceHttp {
-    private val client = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(8))
-        .followRedirects(HttpClient.Redirect.NORMAL)
-        .build()
-
+internal class SourceHttp(private val fetch: (URI, Int) -> ByteArray = HttpSourceTransport()::get) {
     val json = Json { ignoreUnknownKeys = true }
 
     fun get(uri: URI, maxBytes: Int = MAX_RESPONSE_BYTES): ByteArray {
         require(uri.scheme == "https" && uri.host != null && uri.userInfo == null) { "Expected an HTTPS source URL." }
+        return fetch(uri, maxBytes)
+    }
+
+    inline fun <reified T> readJson(uri: URI): T {
+        try {
+            return json.decodeFromString(get(uri).decodeToString())
+        } catch (failure: SerializationException) {
+            throw SourceFailure("INVALID_SOURCE_RESPONSE", "${uri.host} returned unexpected catalog data.", failure)
+        }
+    }
+
+    fun readEpub(uri: URI): ByteArray {
+        val bytes = get(uri)
+        if (!ByteArrayInputStream(bytes).isEpub()) {
+            throw SourceFailure("INVALID_DOWNLOAD", "${uri.host} did not return an EPUB file.")
+        }
+        return bytes
+    }
+}
+
+private class HttpSourceTransport {
+    private val client by lazy {
+        HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(8))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build()
+    }
+
+    fun get(uri: URI, maxBytes: Int): ByteArray {
         val request = HttpRequest.newBuilder(uri)
             .timeout(Duration.ofSeconds(30))
             .header("User-Agent", "TUIBook/0.1 (terminal ebook reader)")
@@ -62,22 +86,6 @@ internal class SourceHttp {
         val bytes = stream.readNBytes(maxBytes + 1)
         if (bytes.size > maxBytes) {
             throw SourceFailure("DOWNLOAD_TOO_LARGE", "Response from ${uri.host} exceeds the size limit.")
-        }
-        return bytes
-    }
-
-    inline fun <reified T> readJson(uri: URI): T {
-        try {
-            return json.decodeFromString(get(uri).decodeToString())
-        } catch (failure: SerializationException) {
-            throw SourceFailure("INVALID_SOURCE_RESPONSE", "${uri.host} returned unexpected catalog data.", failure)
-        }
-    }
-
-    fun readEpub(uri: URI): ByteArray {
-        val bytes = get(uri)
-        if (!ByteArrayInputStream(bytes).isEpub()) {
-            throw SourceFailure("INVALID_DOWNLOAD", "${uri.host} did not return an EPUB file.")
         }
         return bytes
     }
