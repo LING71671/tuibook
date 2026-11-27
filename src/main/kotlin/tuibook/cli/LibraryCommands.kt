@@ -1,11 +1,13 @@
 package tuibook.cli
 
 import tuibook.LocalLibrary
+import tuibook.OnlineLibrary
 import tuibook.ReadingStatus
 import java.nio.file.Path
 
 internal class LibraryCommands(
     private val library: LocalLibrary,
+    private val online: OnlineLibrary,
     private val sink: CommandOutput,
 ) {
     fun execute(args: List<String>) {
@@ -66,9 +68,9 @@ internal class LibraryCommands(
     }
 
     private fun update(args: List<String>) {
-        val title = titleOption(args, "Usage: tuibook update <book ID or title> --title <new title> [--json]")
-        requireNotNull(title) { "Provide the new title with --title." }
-        sink.book(library.rename(args[1], title))
+        val title = titleOption(args, "Usage: tuibook update <book ID or title> [--title <new title>] [--json]")
+        val book = if (title != null) library.rename(args[1], title) else online.refresh(args[1])
+        sink.book(book)
     }
 
     private fun titleOption(args: List<String>, usage: String): String? {

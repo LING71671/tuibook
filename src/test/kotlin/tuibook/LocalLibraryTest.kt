@@ -2,8 +2,13 @@ package tuibook
 
 import org.junit.Rule
 import org.junit.rules.TemporaryFolder
+import tuibook.source.BookDownload
+import tuibook.source.BookFormat
+import tuibook.source.SourceBook
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
+import java.util.HexFormat
 import java.util.concurrent.Executors
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -42,6 +47,37 @@ class LocalLibraryTest {
         assertFalse(Files.exists(Path.of(saved.path)))
         assertEquals(text, Files.readString(file))
         assertEquals(text, Files.readString(Path.of(removed.path)))
+    }
+
+    @Test
+    fun `old download records keep their IDs and can be refreshed`() {
+        val source = SourceBook("example:123", "example", "A story", "https://example.org/books/123")
+        val digest = MessageDigest.getInstance("SHA-256").digest(source.sourceBookId.encodeToByteArray())
+        val id = "book-${HexFormat.of().formatHex(digest)}"
+        val folder = Files.createDirectories(root.resolve("books").resolve(id))
+        val file = folder.resolve("book.txt")
+        Files.writeString(file, "old content")
+        Files.writeString(folder.resolve("book.json"), """
+            {"bookId":"$id","sourceBookId":"example:123","title":"A story","sourceUrl":"https://example.org/books/123","format":"txt","path":"old-path"}
+        """.trimIndent())
+
+        val library = LocalLibrary(root)
+        val book = library.findDownload(source.sourceBookId)!!
+        assertEquals(file.toString(), book.path)
+        assertEquals(ReadingStatus.UNREAD, book.status)
+        assertFalse(book.favorite)
+
+        library.setFavorite(id, true)
+        library.setStatus(id, ReadingStatus.FINISHED)
+        val incompatible = BookDownload(source, BookFormat.EPUB, "wrong format".encodeToByteArray())
+        assertEquals("INCOMPATIBLE_UPDATE", assertFailsWith<LibraryFailure> { library.refresh(id, incompatible) }.code)
+        assertEquals("old content", Files.readString(file))
+
+        val updated = library.refresh(id, BookDownload(source, BookFormat.TEXT, "new content".encodeToByteArray()))
+        assertEquals(id, updated.bookId)
+        assertTrue(updated.favorite)
+        assertEquals(ReadingStatus.FINISHED, updated.status)
+        assertEquals("new content", Files.readString(file))
     }
 
     @Test

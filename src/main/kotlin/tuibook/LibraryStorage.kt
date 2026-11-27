@@ -76,6 +76,10 @@ internal class LibraryStorage(private val root: Path) {
         replaceFile(path) { Files.writeString(it, Json.encodeToString(book)) }
     }
 
+    fun replaceContent(book: LocalBook, content: ByteArray) {
+        replaceFile(Path.of(book.path)) { Files.write(it, content) }
+    }
+
     fun archive(book: LocalBook): LocalBook {
         val trash = Files.createDirectories(root.resolve("trash"))
         val destination = trash.resolve("${book.bookId}-${UUID.randomUUID()}")
