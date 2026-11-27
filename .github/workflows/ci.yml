@@ -48,6 +48,15 @@ jobs:
         shell: pwsh
         run: .\gradlew.bat --no-daemon --console=plain build
 
+      - name: Upload installable archive
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tuibook-distribution
+          path: build/distributions/tuibook-*.zip
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload verification reports
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

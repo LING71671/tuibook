@@ -18,6 +18,10 @@ On Windows PowerShell:
 .\build\install\tuibook\bin\tuibook.bat list
 ```
 
+To install from a ZIP, run `./gradlew distZip` or use `.\gradlew.bat distZip` on Windows.
+Unpack `build/distributions/tuibook-0.1.0.zip` and add its `bin/` directory to your `PATH`. The launcher requires JDK 21.
+The Linux CI job publishes the same ZIP in its `tuibook-distribution` artifact, with launchers for Linux and Windows.
+
 Once the launcher is on your `PATH`, try these commands:
 
 ```text
@@ -42,14 +46,18 @@ Find the HTML reports under `build/reports`:
 GitHub Actions runs the same build on Linux and Windows for pull requests and pushes to `main`.
 Download the verification reports from the workflow run.
 
+The 0.1.0 verification build passed 11 tests, reported 77.1% line coverage, and passed Detekt. The book-source tests use local catalog data so that a public service outage does not affect the build.
+
 ## Project layout
 
 - `src/main/kotlin/tuibook/cli/` handles commands and renders text or JSON.
 - `LocalLibrary` manages the reading list. `LibraryStorage` handles file storage and locking.
 - `OnlineLibrary` coordinates downloads and source settings through the `BookSource` adapters.
 
+The source registry maps stable source IDs to adapters for direct lookup. The OPDS adapter uses a set of supported acquisition relations to select links that can supply an EPUB.
+
 See the [command and source API](docs/API.md) for configuration, response formats, and adapter extension points. The [product requirements](docs/PRODUCT_REQUIREMENTS.md) also describe the planned terminal reading interface.
 
 TUIBook uses Kotlin/JVM, Gradle, and [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization). The [API documentation](docs/API.md#book-sources) credits the book catalog and download services. OpenAI Codex assisted with portions of the implementation and documentation.
 
-See [Contributing](CONTRIBUTING.md) for the pull request workflow.
+See [Contributing](CONTRIBUTING.md) for the pull request workflow and the [development log](docs/DEVELOPMENT_LOG.md) for toolchain decisions.
